@@ -1,0 +1,160 @@
+[
+    {
+        "id": "ebd051e53d01b668",
+        "type": "tab",
+        "label": "Flow",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "ff31be9670e3f125",
+        "type": "udp in",
+        "z": "ebd051e53d01b668",
+        "name": "",
+        "iface": "",
+        "port": "3080",
+        "ipv": "udp4",
+        "multicast": "false",
+        "group": "",
+        "datatype": "utf8",
+        "x": 100,
+        "y": 520,
+        "wires": [
+            [
+                "cd882284d2ca0e8a"
+            ]
+        ]
+    },
+    {
+        "id": "cd882284d2ca0e8a",
+        "type": "function",
+        "z": "ebd051e53d01b668",
+        "name": "FILTER",
+        "func": "var str = msg.payload;\nvar data = str.split(',');\nvar ip = msg.ip;\nvar port = msg.port;\n\n\nglobal.set(\"ip\",ip)\nglobal.set(\"port\",port)\nglobal.set(\"node\",data[0]);\nglobal.set(\"uv\",data[1]);\nglobal.set(\"lat\",data[2]);\nglobal.set(\"lng\",data[3]);\nglobal.set(\"power\",data[4]);\n//global.set(\"uvindex\",data[5]);\n\n\nmsg.payload = {\n    node: data[0],\n    uv: data[1],\n    lat: data[2],\n    lng: data[3],\n    power: data[4],\n    //uvindex: data[5],\n    \"ip\":ip,\n    \"port\":port\n}\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 280,
+        "y": 560,
+        "wires": [
+            [
+                "871fb5e293dac9ab",
+                "4a2a8b59f37796da",
+                "33afa8a071172854"
+            ]
+        ]
+    },
+    {
+        "id": "d068d19f33115258",
+        "type": "debug",
+        "z": "ebd051e53d01b668",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 990,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "1adc1732048854f8",
+        "type": "mysql",
+        "z": "ebd051e53d01b668",
+        "mydb": "1d4c52ff38b866e1",
+        "name": "",
+        "x": 860,
+        "y": 560,
+        "wires": [
+            [
+                "d068d19f33115258"
+            ]
+        ]
+    },
+    {
+        "id": "871fb5e293dac9ab",
+        "type": "debug",
+        "z": "ebd051e53d01b668",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 490,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "4a2a8b59f37796da",
+        "type": "function",
+        "z": "ebd051e53d01b668",
+        "name": "Insert Data",
+        "func": "var Node = String(global.get(\"node\"));\nvar station = String(global.get(\"station\"));\nvar uv_earth = parseInt(global.get(\"uv\"));\nvar Lat = parseFloat(global.get(\"lat\"),6);\nvar Lng = parseFloat(global.get(\"lng\"),6);\nvar power = parseInt(global.get(\"power\"));\nvar uvindex = parseInt(global.get(\"uvindex\"));\nvar Qt_percent = parseFloat(global.get(\"qt_percent\"));\nvar uv_sat = String(global.get(\"uv_satellite\"));\n\nvar Insert_data;\nvar Values_data;\n\nvar Qt_text;\nvar uv_index;\n\nif(Qt_percent < 10){\n  Qt_text = \"VeryBad\";\n} else if(Qt_percent < 25){\n  Qt_text = \"Bad\";\n} else if(Qt_percent < 50){\n  Qt_text = \"Moderate\";\n} else if(Qt_percent < 75){\n  Qt_text = \"Good\";\n} else\n  Qt_text = \"VeryGood\";\n\n\nInsert_data = \"INSERT INTO db_ozone.data_info(station ,quality ,uv_satellite ,uv_earth ,latitude ,longtitude ,power, uvindex)\";\nValues_data = \" VALUES (\"+Node+\",\"+Qt_percent+\",\"+uv_sat+\",\"+uv_earth+\",\"+Lat+\",\"+Lng+\",\"+power+\",\"+uvindex+\")\";\n\n\nvar newMsg = {topic: \"\"+ Insert_data + Values_data+\"\"};\nreturn newMsg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 650,
+        "y": 560,
+        "wires": [
+            [
+                "1adc1732048854f8"
+            ]
+        ]
+    },
+    {
+        "id": "33afa8a071172854",
+        "type": "function",
+        "z": "ebd051e53d01b668",
+        "name": "Calculate",
+        "func": "function uvsatelliterandom(min, max) { \n  return Math.floor(Math.random() * (max - min + 1) + min)\n}\n\nconst uv_satellite = uvsatelliterandom(3850, 4980);\nvar uv_earth = parseInt(global.get(\"uv\"));\nvar ozone_block;\nvar quality_percent=0;\nvar quality_text;\n\n\nozone_block = ((uv_satellite - uv_earth)/uv_satellite) * 100;\n\n//ozone_block = ((uv_earth - uv_satellite)/uv_earth) * 100;\n\n\nquality_percent = 100-ozone_block;\n\nif(uv_earth < 227){\n    uv_index = 0;\n  }   else if(uv_earth < 318){\n      uv_index = 1;\n    } else if(uv_earth < 408){\n      uv_index = 2;\n    } else if(uv_earth < 503){\n      uv_index = 3;\n    } else if(uv_earth < 606){\n      uv_index = 4;\n    } else if(uv_earth < 696){\n      uv_index = 5;\n    } else if(uv_earth < 795){\n      uv_index = 6;\n    } else if(uv_earth < 881){\n      uv_index = 7;\n    } else if(uv_earth < 976){\n      uv_index = 8;\n    } else if(uv_earth < 1079){\n      uv_index = 9;\n    } else if(uv_earth < 1170){\n      uv_index = 10;\n    } else{\n      uv_index = 11;\n    }\nglobal.set(\"uvindex\",uv_index);    \nglobal.set(\"qt_percent\",quality_percent);\nglobal.set(\"uv_satellite\",uv_satellite);\n",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 460,
+        "y": 640,
+        "wires": [
+            [
+                "4a2a8b59f37796da",
+                "a00673c8a09a2fa5"
+            ]
+        ]
+    },
+    {
+        "id": "a00673c8a09a2fa5",
+        "type": "debug",
+        "z": "ebd051e53d01b668",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 680,
+        "y": 660,
+        "wires": []
+    },
+    {
+        "id": "1d4c52ff38b866e1",
+        "type": "MySQLdatabase",
+        "name": "",
+        "host": "35.201.133.251",
+        "port": "3306",
+        "db": "db_ozone",
+        "tz": "Asia/Bangkok",
+        "charset": "UTF8"
+    }
+]
